@@ -1,0 +1,8 @@
+name: eyric-rythos-ai
+metadata:
+  template: eyric-rythos-ai-fastapi
+services:
+  app:
+    project: .
+    language: python
+    host: appservice

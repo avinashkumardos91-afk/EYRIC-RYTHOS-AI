@@ -1,0 +1,12 @@
+Category,Competency,Corresponding Question,Score (1-5),Notes
+Technical & Hard Skills,Modern React Ecosystem,Experience with Next.js and React Server Components,,
+Technical & Hard Skills,State Management,Complex state management problem and approach (Redux/Zustand),,
+Technical & Hard Skills,Performance Optimization,Diagnosing and fixing slow load times and janky scrolling,,
+Technical & Hard Skills,API Integration,Handling loading/errors/optimistic updates with complex APIs,,
+Technical & Hard Skills,Architecture,Architecting scalable frontend codebase from scratch,,
+Behavioral & Cultural Fit,Mentorship,Mentoring a junior engineer and outcomes,,
+Behavioral & Cultural Fit,Cross-Functional Collaboration,Resolving disagreements with designers or PMs,,
+Behavioral & Cultural Fit,Adaptability (Startup Fit),Pivoting quickly on a project in a fast-paced environment,,
+Behavioral & Cultural Fit,Initiative,Identifying and fixing infrastructure problems proactively,,
+Scenario-Based Problem Solving,System Design (UI),Designing real-time collaborative dashboard architecture,,
+Scenario-Based Problem Solving,Debugging,Investigating unreproducible production browser crashes,,
