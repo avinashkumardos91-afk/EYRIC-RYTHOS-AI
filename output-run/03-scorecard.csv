@@ -1,0 +1,11 @@
+Category,Competency,Corresponding Question,Score (1-5),Notes
+Technical,State Management,Approach to managing state (Context vs Redux/Zustand),,
+Technical,Performance,Diagnosing and fixing a performance bottleneck,,
+Technical,Architecture,Structuring frontend architecture from scratch,,
+Technical,API Integration,Handling complex/streaming API integrations,,
+Technical,Testing Strategy,Ideal frontend testing strategy (unit/e2e/integration),,
+Behavioral,Mentorship,Mentoring a junior engineer and adapting style,,
+Behavioral,Conflict Resolution,Resolving disagreement with PM or designer,,
+Behavioral,Adaptability,Pivoting technical approach midway through project,,
+Behavioral,Initiative,Identifying and fixing technical debt or process issue,,
+Scenario,System Design & Perf,Real-time AI dashboard with streaming text and dynamic charts,,
