@@ -1,0 +1,18 @@
+# Virtual environments
+.venv/
+venv/
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+
+# Local configuration and secrets
+.env
+
+# Runtime output
+logs/
+.pytest_cache/
+
+# Runtime agent state (append-only, rewritten on every run)
+data/*.jsonl
+!data/.gitkeep
