@@ -17,16 +17,30 @@
 .PARAMETER Reinstall
     Delete and rebuild .venv from scratch.
 
+.PARAMETER Dev
+    Also install requirements-dev.txt (pytest) and run the test suite before
+    serving. Without this, a rebuilt .venv has no test dependencies.
+
+.PARAMETER Stop
+    Stop whatever is serving on -Port and exit without installing or starting.
+
 .EXAMPLE
     .\install_and_run.ps1
 .EXAMPLE
     .\install_and_run.ps1 -Foreground -Port 8080
+.EXAMPLE
+    .\install_and_run.ps1 -Reinstall -Dev
+.EXAMPLE
+    .\install_and_run.ps1 -Stop
 #>
 [CmdletBinding()]
 param(
     [switch]$Foreground,
+    [ValidateRange(1, 65535)]
     [int]$Port = 8000,
-    [switch]$Reinstall
+    [switch]$Reinstall,
+    [switch]$Dev,
+    [switch]$Stop
 )
 
 $ErrorActionPreference = 'Stop'
@@ -35,6 +49,47 @@ Set-Location $PSScriptRoot
 $venvPython = Join-Path $PSScriptRoot '.venv\Scripts\python.exe'
 $logFile    = Join-Path $PSScriptRoot 'logs\server.log'
 $errFile    = Join-Path $PSScriptRoot 'logs\server.err.log'
+
+# --- 0. Stop mode -------------------------------------------------------------
+# uvicorn runs the socket in a child process, so kill the root parent: killing the
+# child alone would leave the supervisor behind still holding the port.
+function Get-ServerRootPid {
+    param([int]$ListenerPid)
+    $current = $ListenerPid
+    while ($true) {
+        $parentPid = (Get-CimInstance Win32_Process -Filter "ProcessId = $current" -ErrorAction SilentlyContinue).ParentProcessId
+        if (-not $parentPid) { break }
+        $parent = Get-Process -Id $parentPid -ErrorAction SilentlyContinue
+        if (-not $parent -or $parent.Name -ne 'python') { break }
+        $current = $parentPid
+    }
+    return $current
+}
+
+function Stop-Server {
+    param([int]$OnPort)
+    $listeners = Get-NetTCPConnection -LocalPort $OnPort -State Listen -ErrorAction SilentlyContinue
+    if (-not $listeners) {
+        Write-Host "Nothing is listening on port $OnPort." -ForegroundColor Yellow
+        return $false
+    }
+    foreach ($listener in $listeners) {
+        $rootPid = Get-ServerRootPid -ListenerPid $listener.OwningProcess
+        try {
+            Stop-Process -Id $rootPid -Force -Confirm:$false -ErrorAction Stop
+            Write-Host "Stopped server on port $OnPort (PID $rootPid)." -ForegroundColor Green
+        } catch {
+            Write-Host "Could not stop PID ${rootPid}: $($_.Exception.Message)" -ForegroundColor Red
+        }
+    }
+    Start-Sleep -Milliseconds 700
+    return $true
+}
+
+if ($Stop) {
+    Stop-Server -OnPort $Port | Out-Null
+    return
+}
 
 # --- 1. Locate a usable Python interpreter -----------------------------------
 function Get-BasePython {
@@ -67,9 +122,10 @@ if (-not (Test-Path $venvPython)) {
 }
 
 # --- 3. Install pinned dependencies ------------------------------------------
-Write-Host 'Installing dependencies...' -ForegroundColor Cyan
+$requirements = if ($Dev -and (Test-Path 'requirements-dev.txt')) { 'requirements-dev.txt' } else { 'requirements.txt' }
+Write-Host "Installing dependencies from $requirements..." -ForegroundColor Cyan
 & $venvPython -m pip install --upgrade pip --quiet --disable-pip-version-check
-& $venvPython -m pip install -r requirements.txt --quiet --disable-pip-version-check
+& $venvPython -m pip install -r $requirements --quiet --disable-pip-version-check
 if ($LASTEXITCODE -ne 0) { throw 'Dependency installation failed. See the pip output above.' }
 
 # --- 4. Bootstrap configuration ----------------------------------------------
@@ -87,10 +143,17 @@ Write-Host 'Verifying application imports...' -ForegroundColor Cyan
 & $venvPython -c 'import app.main'
 if ($LASTEXITCODE -ne 0) { throw 'app/main.py failed to import. Fix the error above before starting the server.' }
 
+if ($Dev) {
+    Write-Host 'Running test suite...' -ForegroundColor Cyan
+    & $venvPython -m pytest tests -q
+    if ($LASTEXITCODE -ne 0) { throw 'Tests failed. Not starting the server.' }
+}
+
 # --- 6. Refuse to double-bind the port ---------------------------------------
 $inUse = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue
 if ($inUse) {
-    throw "Port $Port is already in use (PID $($inUse[0].OwningProcess)). Stop it or pass -Port <other>."
+    $rootPid = Get-ServerRootPid -ListenerPid $inUse[0].OwningProcess
+    throw "Port $Port is already in use (PID $rootPid). Stop it with '.\install_and_run.ps1 -Stop -Port $Port', or pass -Port <other>."
 }
 
 # --- 7. Serve -----------------------------------------------------------------
@@ -139,5 +202,5 @@ Write-Host 'EYRIC RYTHOS AI is running.' -ForegroundColor Green
 Write-Host "  Dashboard : http://127.0.0.1:$Port/" -ForegroundColor Green
 Write-Host "  Health    : $healthUrl" -ForegroundColor Green
 Write-Host "  API docs  : http://127.0.0.1:$Port/docs" -ForegroundColor Green
-Write-Host "  PID       : $($proc.Id)   (stop with: Stop-Process -Id $($proc.Id))" -ForegroundColor DarkGray
+Write-Host "  PID       : $($proc.Id)   (stop with: .\install_and_run.ps1 -Stop -Port $Port)" -ForegroundColor DarkGray
 Write-Host "  Logs      : $logFile" -ForegroundColor DarkGray
