@@ -5,7 +5,7 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
 from app.core.agent import build_agent
-from app.core.security import RateLimiter, check_api_key
+from app.core.security import RateLimiter, check_api_key, is_production
 
 app = FastAPI(title="EYRIC RYTHOS AI")
 
@@ -23,6 +23,17 @@ app.add_middleware(
 agent = build_agent()
 rate_limiter = RateLimiter(limit=int(os.getenv('RATE_LIMIT', '60')), window_seconds=int(os.getenv('RATE_WINDOW', '60')))
 API_KEY = os.getenv('API_KEY')
+
+if is_production() and not API_KEY:
+    raise RuntimeError(
+        'PRODUCTION is set but API_KEY is empty. Refusing to start an unauthenticated '
+        'public service — set API_KEY in .env, or unset PRODUCTION for local development.'
+    )
+
+if is_production() and '*' in allowed_origins:
+    raise RuntimeError(
+        'PRODUCTION is set but ALLOWED_ORIGINS permits "*". Set an explicit origin list in .env.'
+    )
 
 
 class ChatRequest(BaseModel):

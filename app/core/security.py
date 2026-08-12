@@ -1,4 +1,5 @@
 import os
+import secrets
 import time
 from collections import defaultdict
 
@@ -19,9 +20,23 @@ class RateLimiter:
         return True
 
 
-def check_api_key(provided_key: str | None, expected_key: str | None) -> bool:
+def is_production() -> bool:
+    return os.getenv('PRODUCTION', '').strip().lower() in {'1', 'true', 'yes', 'on'}
+
+
+def check_api_key(
+    provided_key: str | None,
+    expected_key: str | None,
+    production: bool | None = None,
+) -> bool:
+    if production is None:
+        production = is_production()
     if not expected_key:
-        return True
+        # Open when unconfigured so local development stays frictionless, but fail
+        # closed under PRODUCTION: a missing key must never silently mean "public".
+        return not production
     if not provided_key:
         return False
-    return provided_key == expected_key
+    # Constant-time comparison: a plain == leaks how many leading characters
+    # matched via response timing, letting an attacker recover the key byte by byte.
+    return secrets.compare_digest(provided_key, expected_key)
